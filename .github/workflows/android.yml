@@ -1,14 +1,14 @@
-name: TeamTalk5 Android Build (Manual - Universal)
+name: TeamTalk5 Android Build (arm64-v8a Only + Cached NDK)
 
 on:
-  workflow_dispatch:  # MANUAL ONLY! Gak auto-run
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-universal-apk:
+  build-arm64-apk:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,25 +19,31 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
       
+      # Setup NDK r29 (Diperlukan agar Gradle bisa menemukan toolchain, 
+      # tapi TIDAK akan compile ulang karena kita pakai cache di bawah)
       - name: Set up Android NDK r29
         uses: nttld/setup-ndk@v1
         id: setup-ndk
         with:
           ndk-version: r29
       
+      # CACHE NATIVE BUILDS: Ini kuncinya biar ga compile ulang NDK/WebRTC
       - name: Cache Native Builds (WebRTC & Install)
         uses: actions/cache@v4
         with:
           path: |
             ${{runner.workspace}}/webrtc
             ${{runner.workspace}}/install-android
-          key: ${{ runner.os }}-native-${{ hashFiles('**/CMakeLists.txt', '**/Makefile') }}
-          restore-keys: ${{ runner.os }}-native-
+          key: ${{ runner.os }}-native-r29-${{ hashFiles('**/CMakeLists.txt', '**/Makefile', 'Build/**') }}
+          restore-keys: |
+            ${{ runner.os }}-native-r29-
+            ${{ runner.os }}-native-
       
       - name: Install Dependencies
         working-directory: ${{github.workspace}}/Build
         run: sudo make depend-ubuntu24-android
       
+      # Build Native Libs (Akan SKIP cepat jika cache hit)
       - name: Build TeamTalk Library (C++)
         working-directory: ${{github.workspace}}/Build
         run: |
@@ -60,15 +66,19 @@ jobs:
           keyPassword=android123
           EOF
       
-      - name: Build Universal Release APK
+      # GRADLE BUILD: Hanya ambil .so arm64-v8a dari cache, GA COMPILE ULANG C++
+      - name: Build arm64-v8a Release APK
         working-directory: ${{github.workspace}}/Client/TeamTalkAndroid
         run: |
           chmod +x gradlew
-          # FLAG PENTING: -PuniversalApk=true bikin 1 APK buat semua arsitektur
-          ./gradlew assembleRelease --no-daemon -PuniversalApk=true
+          # abiFilters memaksa Gradle HANYA package arm64-v8a
+          # --no-daemon penting di CI agar memory ga bocor
+          ./gradlew assembleRelease --no-daemon -PabiFilters=arm64-v8a
       
-      - name: Upload Universal APK
+      # UPLOAD: HANYA APK FINAL, TIDAK ADA ARTIFACT LAIN
+      - name: Upload arm64-v8a APK
         uses: actions/upload-artifact@v4
         with:
-          name: TeamTalk5-Universal-Release-APK
+          name: TeamTalk5-arm64-v8a-Release
           path: Client/TeamTalkAndroid/build/outputs/apk/release/*.apk
+          if-no-files-found: error
