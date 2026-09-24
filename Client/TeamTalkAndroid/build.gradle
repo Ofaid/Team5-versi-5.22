@@ -40,14 +40,11 @@ android {
                 keyAlias = ks['keyAlias']
                 keyPassword = ks['keyPassword']
                 
-                // SAFETY WRAPPER: Coba aktifkan V3, kalau gagal fallback ke V2
-                try {
-                    v2SigningEnabled = true
-                    v3SigningEnabled = true
-                } catch (Exception e) {
-                    println "Warning: V3 Signing failed (${e.message}). Falling back to V2 only."
-                    v2SigningEnabled = true
-                }
+                // Perbaikan: Menggunakan properti penandatanganan AGP versi terbaru
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+                enableV4Signing = false
             }
         }
     }
