@@ -9,10 +9,10 @@ if (ksFile.exists()) {
 }
 
 android {
-    enableKotlin = false
-    namespace = 'dk.bearware.gui'
+    // BARIS INI DIHAPUS KARENA BIKIN ERROR PARSING DI BEBERAPA VERSI AGP
+    // enableKotlin = false 
     
-    // PERBAIKAN SYNTAX: compileSdk version = release(37) -> compileSdk = 37
+    namespace = 'dk.bearware.gui'
     compileSdk = 37 
     buildToolsVersion = '37.0.0'
     ndkVersion = '29.0.14206865'
@@ -26,14 +26,12 @@ android {
 
         testInstrumentationRunner = 'androidx.test.runner.AndroidJUnitRunner'
         
-        // TAMBAHAN PENTING: Filter ABI di level defaultConfig
-        // Ini memastikan Gradle & CMake hanya fokus ke arm64-v8a dari awal
+        // Filter ABI spesifik arm64-v8a
         ndk {
             abiFilters 'arm64-v8a'
         }
     }
 
-    // SIGNING CONFIGS: Pastikan selalu aktif jika file keystore ada
     signingConfigs {
         release {
             if (ksFile.exists()) {
@@ -41,9 +39,15 @@ android {
                 storePassword = ks['storePassword']
                 keyAlias = ks['keyAlias']
                 keyPassword = ks['keyPassword']
-                // WAJIB: Aktifkan V2 & V3 untuk Android 10+
-                v2SigningEnabled = true
-                v3SigningEnabled = true
+                
+                // SAFETY WRAPPER: Coba aktifkan V3, kalau gagal fallback ke V2
+                try {
+                    v2SigningEnabled = true
+                    v3SigningEnabled = true
+                } catch (Exception e) {
+                    println "Warning: V3 Signing failed (${e.message}). Falling back to V2 only."
+                    v2SigningEnabled = true
+                }
             }
         }
     }
@@ -78,15 +82,12 @@ android {
         generateLocaleConfig = true
     }
 
-    // PERUBAHAN RADIKAL DI SINI:
-    // Hapus universalApk = true
-    // Hanya include arm64-v8a
     splits {
         abi {
             enable = true
             reset()
-            include 'arm64-v8a' // Hapus armeabi-v7a, x86, x86_64
-            universalApk = false // JANGAN Universal!
+            include 'arm64-v8a'
+            universalApk = false
         }
     }
 
@@ -113,9 +114,7 @@ android {
 
 tasks.register('syncJniLibs', Sync) {
     from('../../Library/TeamTalkJNI/libs') {
-        // PERBAIKAN: Hanya sync arm64-v8a
         include 'arm64-v8a/**'
-        // Hapus: 'armeabi-v7a/**', 'x86/**', 'x86_64/**'
     }
     into layout.buildDirectory.dir('jniLibs-staging')
 }
