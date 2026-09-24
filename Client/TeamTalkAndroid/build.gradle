@@ -36,26 +36,18 @@ jobs:
             ${{ runner.os }}-native-r29-
             ${{ runner.os }}-native-
       
-      # SOLUSI ERROR JDK 25:
-      # Kita set JAVA_HOME sebelum jalankan make, biar script detect Java sudah ada
-      # Dan kita coba jalankan make, jika gagal karena JDK 25, kita abaikan (karena Java 17 sudah cukup buat Gradle)
       - name: Install System Dependencies
         working-directory: ${{github.workspace}}/Build
         run: |
-          # Export JAVA_HOME dari step setup-java sebelumnya
           export JAVA_HOME=${{ env.JAVA_HOME }}
-          
-          # Coba jalankan depend-ubuntu24-android
-          # Jika gagal karena openjdk-25 not found, script akan error
-          # Tapi karena kita sudah punya Java 17, kita bisa lanjut ke build
           sudo make depend-ubuntu24-android || echo "Warning: Dependency install skipped/warned. Using pre-installed Java 17."
       
-      - name: Build TeamTalk Library (C++)
+      # ✅ PERBAIKAN KRUSIAL: GANTI android-all JADI android-arm64-v8a
+      - name: Build TeamTalk Library (C++ ARM64 ONLY)
         working-directory: ${{github.workspace}}/Build
         run: |
-          # Tambahkan JAVA_HOME env di sini juga biar aman
           make CMAKE_EXTRA="-G Ninja -DWEBRTC_FETCH_PATH=${{runner.workspace}}/webrtc -DCMAKE_INSTALL_PREFIX=${{runner.workspace}}/install-android" \
-               CMAKE_BUILD_EXTRA="--target install" android-all
+               CMAKE_BUILD_EXTRA="--target install" android-arm64-v8a
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           JAVA_HOME: ${{ env.JAVA_HOME }}
@@ -78,7 +70,6 @@ jobs:
         working-directory: ${{github.workspace}}/Client/TeamTalkAndroid
         run: |
           chmod +x gradlew
-          # Tidak perlu -PabiFilters lagi karena sudah diatur di build.gradle
           ./gradlew assembleRelease --no-daemon
       
       - name: Upload arm64-v8a APK
