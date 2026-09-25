@@ -9,9 +9,6 @@ if (ksFile.exists()) {
 }
 
 android {
-    // BARIS INI DIHAPUS KARENA BIKIN ERROR PARSING DI BEBERAPA VERSI AGP
-    // enableKotlin = false 
-    
     namespace = 'dk.bearware.gui'
     compileSdk = 37 
     buildToolsVersion = '37.0.0'
@@ -23,13 +20,10 @@ android {
         targetSdk = 37
         versionCode = 150
         versionName = '5.22'
-
         testInstrumentationRunner = 'androidx.test.runner.AndroidJUnitRunner'
         
-        // Filter ABI spesifik arm64-v8a
-        ndk {
-            abiFilters 'arm64-v8a'
-        }
+        // ⚠️ PENTING: JANGAN ADA abiFilters DI SINI KALAU PAKAI SPLITS
+        // Biarkan splits yang mengatur arsitektur agar tidak bentrok
     }
 
     signingConfigs {
@@ -40,11 +34,11 @@ android {
                 keyAlias = ks['keyAlias']
                 keyPassword = ks['keyPassword']
                 
-                // Perbaikan: Menggunakan properti penandatanganan AGP versi terbaru
+                // ✅ METODE SIGNING TERBARU (V1, V2, V3, V4)
                 enableV1Signing = true
                 enableV2Signing = true
                 enableV3Signing = true
-                enableV4Signing = false
+                enableV4Signing = false // Set true kalau mau upload ke Play Store
             }
         }
     }
@@ -79,6 +73,7 @@ android {
         generateLocaleConfig = true
     }
 
+    // ✅ HANYA INI YANG MENGATUR ARM64-V8A
     splits {
         abi {
             enable = true
